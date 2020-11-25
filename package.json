@@ -30,6 +30,7 @@
     "mongoose": "^5.10.11",
     "morgan": "^1.10.0",
     "query-string": "^6.13.7",
+    "twilio": "^3.52.0",
     "xss-clean": "^0.1.1"
   },
   "devDependencies": {
