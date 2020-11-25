@@ -1,3 +1,0 @@
-1) OAuth
-   - User should be able to login with Google or Facebook, but not both.
-2) Two factor authentication
