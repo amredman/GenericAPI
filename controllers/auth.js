@@ -24,14 +24,7 @@ exports.register = asyncHandler(async (req, res, next) => {
   const confirmToken = user.getConfirmEmailToken();
   await user.save({ validateBeforeSave: false });
 
-  if (
-    !sendConfirmationEmail(
-      req.protocol,
-      req.get('host'),
-      user.email,
-      confirmToken
-    )
-  ) {
+  if (!sendConfirmationEmail(req.protocol, req.get('host'), user.email, confirmToken)) {
     return next(new ErrorResponse('Email could not be sent', 500));
   }
 
@@ -80,14 +73,7 @@ exports.resendConfirmationEmail = asyncHandler(async (req, res, next) => {
   // Check for user and send email if user found
   const user = await User.findOne({ email }).select('+confirmEmailToken');
   if (user && !user.emailConfirmed) {
-    if (
-      !sendConfirmationEmail(
-        req.protocol,
-        req.get('host'),
-        user.email,
-        user.confirmEmailToken
-      )
-    ) {
+    if (!sendConfirmationEmail(req.protocol, req.get('host'), user.email, user.confirmEmailToken)) {
       return next(new ErrorResponse('Email could not be sent', 500));
     }
   }
@@ -201,12 +187,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 
   if (user) {
     if (!user.emailConfirmed) {
-      return next(
-        new ErrorResponse(
-          'Please confirm email address before resetting password',
-          401
-        )
-      );
+      return next(new ErrorResponse('Please confirm email address before resetting password', 401));
     }
 
     // Get reset token
@@ -214,9 +195,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Create reset url
-    const resetUrl = `${req.protocol}://${req.get(
-      'host'
-    )}/api/v1/auth/resetpassword/${resetToken}`;
+    const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/resetpassword/${resetToken}`;
 
     const messageText = `To reset your password, please make a PUT request to: \n\n ${resetUrl}`;
     const messageHtml = `To confirm your email address, please make a PUT request to: \n\n ${resetUrl}`;
@@ -272,19 +251,12 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.params.id);
 
   if (!user) {
-    return next(
-      new ErrorResponse(`User not found with id of ${req.params.id}`, 404)
-    );
+    return next(new ErrorResponse(`User not found with id of ${req.params.id}`, 404));
   }
 
   // Make sure user is current user or admin
   if (user.id.toString() !== req.user.id && req.user.role !== 'admin') {
-    return next(
-      new ErrorResponse(
-        `User  ${user.id} is not authorized to delete this user`,
-        401
-      )
-    );
+    return next(new ErrorResponse(`User  ${user.id} is not authorized to delete this user`, 401));
   }
 
   user.remove();
@@ -302,9 +274,7 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
 // @access   Public
 exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
   //queryString doesn't parse parameters properly with the route information in the url
-  const urlParams = queryString.parse(
-    req.originalUrl.replace('/api/v1/auth/google/login?', '')
-  );
+  const urlParams = queryString.parse(req.originalUrl.replace('/api/v1/auth/google/login?', ''));
 
   //Create access token
   const { data } = await axios({
@@ -313,7 +283,7 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
     data: {
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: 'http://localhost:5000/api/v1/auth/google/login',
+      redirect_uri: `${req.protocol}://${req.get('host')}/api/v1/auth/google/login`,
       grant_type: 'authorization_code',
       code: urlParams.code,
     },
@@ -329,7 +299,7 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
   });
 
   const email = googleData.data.email;
-  let user = await User.findOne({ email }).select('+confirmEmailToken');
+  let user = await User.findOne({ email });
 
   if (!user) {
     user = await User.create({
@@ -339,12 +309,6 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
     });
   }
 
-  //console.log(googleData);
-
-  //Check to see if this user exists.
-  //If user does not exist, create user
-  //Return authentication token
-
   sendTokenResponse(user, 200, res);
 });
 
@@ -352,15 +316,10 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
 // @route    GET /api/v1/auth/google
 // @access   Private
 exports.createGoogleUrl = asyncHandler(async (req, res, next) => {
-  console.log('Creating Google login URL');
-
   const stringifiedParams = queryString.stringify({
     client_id: process.env.GOOGLE_CLIENT_ID,
-    redirect_uri: 'http://localhost:5000/api/v1/auth/google/login',
-    scope: [
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/userinfo.profile',
-    ].join(' '), // space seperated string
+    redirect_uri: `${req.protocol}://${req.get('host')}/api/v1/auth/google/login`,
+    scope: ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'].join(' '),
     response_type: 'code',
     access_type: 'offline',
     prompt: 'consent',
@@ -377,9 +336,7 @@ const sendTokenResponse = (user, statusCode, res) => {
   const token = user.getSignedJwtToken();
 
   const options = {
-    expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000
-    ),
+    expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
     httpOnly: true,
   };
 
@@ -387,10 +344,7 @@ const sendTokenResponse = (user, statusCode, res) => {
     options.secure = true;
   }
 
-  res
-    .status(statusCode)
-    .cookie('token', token, options)
-    .json({ success: true, token });
+  res.status(statusCode).cookie('token', token, options).json({ success: true, token });
 };
 
 const sendConfirmationEmail = async (protocol, host, email, confirmToken) => {

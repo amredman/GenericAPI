@@ -1,3 +1,2 @@
-1) Figure out .gitignore issue
+1) Login with Facebook
 2) Two factor authentication
-3) Login with Facebook / Google
