@@ -270,10 +270,9 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
 });
 
 // @desc     Login with Google.  This endpoint is hit from Google and should not be accessed from a front-end application.
-// @route    POST /api/v1/auth/google
+// @route    POST /api/v1/auth/google/login
 // @access   Public
 exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
-  //queryString doesn't parse parameters properly with the route information in the url
   const urlParams = queryString.parse(req.originalUrl.replace('/api/v1/auth/google/login?', ''));
 
   //Create access token
@@ -299,7 +298,7 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
   });
 
   const email = googleData.data.email;
-  let user = await User.findOne({ email });
+  let user = await User.findOne({ email }).select('+facebookId');
 
   if (!user) {
     user = await User.create({
@@ -307,6 +306,9 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
       email,
       googleId: googleData.data.id,
     });
+  } else if (user.facebookId) {
+    //User has already logged in with Facebook
+    return next(new ErrorResponse('User has already created an account with Facebook', 400));
   }
 
   sendTokenResponse(user, 200, res);
@@ -314,7 +316,7 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
 
 // @desc     Create URL to enable Login with Google
 // @route    GET /api/v1/auth/google
-// @access   Private
+// @access   Public
 exports.createGoogleUrl = asyncHandler(async (req, res, next) => {
   const stringifiedParams = queryString.stringify({
     client_id: process.env.GOOGLE_CLIENT_ID,
@@ -328,6 +330,71 @@ exports.createGoogleUrl = asyncHandler(async (req, res, next) => {
   const googleLoginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${stringifiedParams}`;
 
   res.status(200).json({ success: true, data: { googleLoginUrl } });
+});
+
+// @desc     Login with Facebook.  This endpoint is hit from Facebook and should not be accessed from a front-end application.
+// @route    GET /api/v1/auth/facebook/login
+// @access   Private
+exports.loginWithFacebook = asyncHandler(async (req, res, next) => {
+  const urlParams = queryString.parse(req.originalUrl.replace('/api/v1/auth/facebook/login?', ''));
+
+  //Create access token
+  const { data } = await axios({
+    url: 'https://graph.facebook.com/v4.0/oauth/access_token',
+    method: 'get',
+    params: {
+      client_id: process.env.FACEBOOK_APP_ID,
+      client_secret: process.env.FACEBOOK_APP_SECRET,
+      redirect_uri: `${req.protocol}://${req.get('host')}/api/v1/auth/facebook/login`,
+      code: urlParams.code,
+    },
+  });
+
+  //Select user information from Facebook
+  const facebookData = await axios({
+    url: 'https://graph.facebook.com/me',
+    method: 'get',
+    params: {
+      fields: ['id', 'email', 'first_name', 'last_name'].join(','),
+      access_token: data.access_token,
+    },
+  });
+
+  //Search for user and create if not found
+  const email = facebookData.data.email;
+  let user = await User.findOne({ email }).select('+googleId');
+
+  if (!user) {
+    user = await User.create({
+      name: facebookData.data.first_name + ' ' + facebookData.data.last_name,
+      email,
+      facebookId: facebookData.data.id,
+    });
+  } else if (user.googleId) {
+    //User has already logged in with Google
+    return next(new ErrorResponse('User has already created an account with Google', 400));
+  }
+
+  //Log the user in and return a valid token
+  sendTokenResponse(user, 200, res);
+});
+
+// @desc     Create URL to enable Login with Facebook
+// @route    GET /api/v1/auth/facebook
+// @access   Public
+exports.createFacebookUrl = asyncHandler(async (req, res, next) => {
+  const stringifiedParams = queryString.stringify({
+    client_id: process.env.FACEBOOK_APP_ID,
+    redirect_uri: `${req.protocol}://${req.get('host')}/api/v1/auth/facebook/login`,
+    scope: ['email'],
+    response_type: 'code',
+    auth_type: 'rerequest',
+    display: 'popup',
+  });
+
+  const facebookLoginUrl = `https://www.facebook.com/v4.0/dialog/oauth?${stringifiedParams}`;
+
+  res.status(200).json({ success: true, data: { facebookLoginUrl } });
 });
 
 // Get token from model, create cookie and send response

@@ -12,10 +12,7 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add an email'],
     unique: true,
-    match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      'Please add a valid email',
-    ],
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please add a valid email'],
   },
   role: {
     type: String,
@@ -29,6 +26,11 @@ const UserSchema = new mongoose.Schema({
     select: false,
   },
   googleId: {
+    type: String,
+    required: false,
+    select: false,
+  },
+  facebookId: {
     type: String,
     required: false,
     select: false,
@@ -66,10 +68,8 @@ UserSchema.pre('save', async function (next) {
 });
 
 UserSchema.pre('validate', async function (next) {
-  if (!this.password && !this.googleId) {
-    next(
-      new Error('Either provide a password or use a 3rd party login provider')
-    );
+  if (!this.password && !this.googleId && !this.facebookId) {
+    next(new Error('Either provide a password or use a 3rd party login provider'));
   }
 });
 
