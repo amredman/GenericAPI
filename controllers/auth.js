@@ -24,7 +24,6 @@ exports.register = asyncHandler(async (req, res, next) => {
   // Generate confirm email token and save user
   const confirmToken = user.getConfirmEmailToken();
   await user.save({ validateBeforeSave: false });
-
   if (!sendConfirmationEmail(req.protocol, req.get('host'), user.email, confirmToken)) {
     return next(new ErrorResponse('Email could not be sent', 500));
   }
@@ -53,11 +52,14 @@ exports.confirmEmailAddress = asyncHandler(async (req, res, next) => {
   user.emailConfirmed = true;
   user.confirmEmailToken = undefined;
   await user.save();
-
+  const redirectUrl = `${protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/confirmemail/${confirmToken}`;
+  res.redirect(redirectURl)
+    /*
   res.status(200).json({
     success: true,
     data: {},
   });
+  */
 });
 
 // @desc     Re-send confirmation email
@@ -65,7 +67,8 @@ exports.confirmEmailAddress = asyncHandler(async (req, res, next) => {
 // @access   Public
 exports.resendConfirmationEmail = asyncHandler(async (req, res, next) => {
   const { email } = req.body;
-
+  console.log(req.get('host'))
+  console.log(process.env.FRONTEND_HOST)
   // Validate email & password
   if (!email) {
     return next(new ErrorResponse('Please provide an email', 400));
