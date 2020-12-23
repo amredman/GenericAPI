@@ -69,7 +69,10 @@ UserSchema.pre('save', async function (next) {
 
 UserSchema.pre('validate', async function (next) {
   if (!this.password && !this.googleId && !this.facebookId) {
-    next(new Error('Either provide a password or use a 3rd party login provider'));
+    // block email verification
+    if (!this.emailConfirmed) {
+      next(new Error('Either provide a password or use a 3rd party login provider'));
+    }
   }
 });
 
