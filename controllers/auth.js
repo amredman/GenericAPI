@@ -67,8 +67,6 @@ exports.confirmEmailAddress = asyncHandler(async (req, res, next) => {
 // @access   Public
 exports.resendConfirmationEmail = asyncHandler(async (req, res, next) => {
   const { email } = req.body;
-  console.log(req.get('host'))
-  console.log(process.env.FRONTEND_HOST)
   // Validate email & password
   if (!email) {
     return next(new ErrorResponse('Please provide an email', 400));
