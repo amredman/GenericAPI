@@ -158,6 +158,9 @@ exports.updateDetails = asyncHandler(async (req, res, next) => {
     runValidators: true,
   });
 
+  if (!sendNotificationEmail(user.email, 'profile')) {
+    return next(new ErrorResponse('Email could not be sent', 500));
+  }
   res.status(200).json({
     success: true,
     data: user,
@@ -177,6 +180,10 @@ exports.updatePassword = asyncHandler(async (req, res, next) => {
 
   user.password = req.body.newPassword;
   await user.save();
+
+  if (!sendNotificationEmail(user.email, 'password')) {
+    return next(new ErrorResponse('Email could not be sent', 500));
+  }
 
   sendTokenResponse(user, 200, res);
 });
@@ -436,3 +443,18 @@ const sendConfirmationEmail = async (protocol, host, email, confirmToken) => {
     return false;
   }
 };
+
+const sendNotificationEmail = async (email, type) => {
+  try {
+    await sendEmail({
+      email,
+      subject: `${type} change notification`,
+      text: `Your ${type} has been updated`,
+      html: `Your ${type} has been updated`
+    });
+    return true;
+  } catch (err) {
+    console.log(err);
+    return false;
+  }
+}
