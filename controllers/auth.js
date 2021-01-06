@@ -319,8 +319,8 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
     //User has already logged in with Facebook
     return next(new ErrorResponse('User has already created an account with Facebook', 400));
   }
-
-  sendTokenResponse(user, 200, res);
+  const {token, options} = genTokenAndOptions(user)
+  res.cookie('token', token, options).redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/login`)
 });
 
 // @desc     Create URL to enable Login with Google
@@ -385,7 +385,8 @@ exports.loginWithFacebook = asyncHandler(async (req, res, next) => {
   }
 
   //Log the user in and return a valid token
-  sendTokenResponse(user, 200, res);
+  const {token, options} = genTokenAndOptions(user)
+  res.cookie('token', token, options).redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/login`)
 });
 
 // @desc     Create URL to enable Login with Facebook
@@ -406,20 +407,25 @@ exports.createFacebookUrl = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: { facebookLoginUrl } });
 });
 
-// Get token from model, create cookie and send response
-const sendTokenResponse = (user, statusCode, res) => {
+const genTokenAndOptions = (user) => {
+  
   // Create token
   const token = user.getSignedJwtToken();
 
   const options = {
     expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
-    httpOnly: true,
+    //httpOnly: true,
   };
 
   if (process.env.NODE_ENV === 'production') {
     options.secure = true;
   }
+  return {token, options}
+}
 
+// Get token from model, create cookie and send response
+const sendTokenResponse = (user, statusCode, res) => {
+  const {token, options} = genTokenAndOptions(user)
   res.status(statusCode).cookie('token', token, options).json({ success: true, token });
 };
 
