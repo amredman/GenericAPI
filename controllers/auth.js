@@ -434,7 +434,8 @@ const sendConfirmationEmail = async (protocol, host, email, confirmToken) => {
   const confirmUrl = `${protocol}://${host}/api/v1/auth/confirmemail/${confirmToken}`;
 
   const messageText = `To confirm your email address, please make a GET request to: \n\n ${confirmUrl}`;
-  const messageHtml = `To confirm your email address, please make a GET request to: \n\n ${confirmUrl}`;
+  const messageHtml = `
+    <p>Thank you for <i>registering!</i>, please click <a href="${confirmUrl}">here</a> to confirm</p>`;
 
   try {
     await sendEmail({
