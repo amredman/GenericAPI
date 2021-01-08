@@ -24,7 +24,6 @@ exports.register = asyncHandler(async (req, res, next) => {
   // Generate confirm email token and save user
   const confirmToken = user.getConfirmEmailToken();
   await user.save({ validateBeforeSave: false });
-
   if (!sendConfirmationEmail(req.protocol, req.get('host'), user.email, confirmToken)) {
     return next(new ErrorResponse('Email could not be sent', 500));
   }
@@ -53,11 +52,14 @@ exports.confirmEmailAddress = asyncHandler(async (req, res, next) => {
   user.emailConfirmed = true;
   user.confirmEmailToken = undefined;
   await user.save();
-
+  const redirectUrl = `http://${process.env.FRONTEND_HOST}/api/v1/auth/confirmemail/${confirmEmailToken}`;
+  res.redirect(redirectUrl)
+    /*
   res.status(200).json({
     success: true,
     data: {},
   });
+  */
 });
 
 // @desc     Re-send confirmation email
@@ -65,7 +67,6 @@ exports.confirmEmailAddress = asyncHandler(async (req, res, next) => {
 // @access   Public
 exports.resendConfirmationEmail = asyncHandler(async (req, res, next) => {
   const { email } = req.body;
-
   // Validate email & password
   if (!email) {
     return next(new ErrorResponse('Please provide an email', 400));
@@ -157,6 +158,9 @@ exports.updateDetails = asyncHandler(async (req, res, next) => {
     runValidators: true,
   });
 
+  if (!sendNotificationEmail(user.email, 'profile')) {
+    return next(new ErrorResponse('Email could not be sent', 500));
+  }
   res.status(200).json({
     success: true,
     data: user,
@@ -177,6 +181,10 @@ exports.updatePassword = asyncHandler(async (req, res, next) => {
   user.password = req.body.newPassword;
   await user.save();
 
+  if (!sendNotificationEmail(user.email, 'password')) {
+    return next(new ErrorResponse('Email could not be sent', 500));
+  }
+
   sendTokenResponse(user, 200, res);
 });
 
@@ -196,10 +204,12 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Create reset url
-    const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/resetpassword/${resetToken}`;
+    const resetUrl = `${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/resetpassword/${resetToken}`;
 
-    const messageText = `To reset your password, please make a PUT request to: \n\n ${resetUrl}`;
-    const messageHtml = `To confirm your email address, please make a PUT request to: \n\n ${resetUrl}`;
+    const messageText = `To reset your password please click the link below`;
+
+    const messageHtml = `
+    <p>To reset your password please click <a href="${resetUrl}">here</a> to continue</p>`;
 
     try {
       await sendEmail({
@@ -311,8 +321,8 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
     //User has already logged in with Facebook
     return next(new ErrorResponse('User has already created an account with Facebook', 400));
   }
-
-  sendTokenResponse(user, 200, res);
+  const {token, options} = genTokenAndOptions(user)
+  res.cookie('token', token, options).redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/login`)
 });
 
 // @desc     Create URL to enable Login with Google
@@ -377,7 +387,8 @@ exports.loginWithFacebook = asyncHandler(async (req, res, next) => {
   }
 
   //Log the user in and return a valid token
-  sendTokenResponse(user, 200, res);
+  const {token, options} = genTokenAndOptions(user)
+  res.cookie('token', token, options).redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/login`)
 });
 
 // @desc     Create URL to enable Login with Facebook
@@ -398,20 +409,25 @@ exports.createFacebookUrl = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: { facebookLoginUrl } });
 });
 
-// Get token from model, create cookie and send response
-const sendTokenResponse = (user, statusCode, res) => {
+const genTokenAndOptions = (user) => {
+  
   // Create token
   const token = user.getSignedJwtToken();
 
   const options = {
     expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
-    httpOnly: true,
+    //httpOnly: true,
   };
 
   if (process.env.NODE_ENV === 'production') {
     options.secure = true;
   }
+  return {token, options}
+}
 
+// Get token from model, create cookie and send response
+const sendTokenResponse = (user, statusCode, res) => {
+  const {token, options} = genTokenAndOptions(user)
   res.status(statusCode).cookie('token', token, options).json({ success: true, token });
 };
 
@@ -420,7 +436,8 @@ const sendConfirmationEmail = async (protocol, host, email, confirmToken) => {
   const confirmUrl = `${protocol}://${host}/api/v1/auth/confirmemail/${confirmToken}`;
 
   const messageText = `To confirm your email address, please make a GET request to: \n\n ${confirmUrl}`;
-  const messageHtml = `To confirm your email address, please make a GET request to: \n\n ${confirmUrl}`;
+  const messageHtml = `
+    <p>Thank you for <i>registering!</i>, please click <a href="${confirmUrl}">here</a> to confirm</p>`;
 
   try {
     await sendEmail({
@@ -435,3 +452,18 @@ const sendConfirmationEmail = async (protocol, host, email, confirmToken) => {
     return false;
   }
 };
+
+const sendNotificationEmail = async (email, type) => {
+  try {
+    await sendEmail({
+      email,
+      subject: `${type} change notification`,
+      text: `Your ${type} has been updated`,
+      html: `Your ${type} has been updated`
+    });
+    return true;
+  } catch (err) {
+    console.log(err);
+    return false;
+  }
+}
