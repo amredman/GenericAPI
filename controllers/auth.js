@@ -338,9 +338,9 @@ exports.createGoogleUrl = asyncHandler(async (req, res, next) => {
     prompt: 'consent',
   });
 
-  const googleLoginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${stringifiedParams}`;
+  const loginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${stringifiedParams}`;
 
-  res.status(200).json({ success: true, data: { googleLoginUrl } });
+  res.status(200).json({ success: true, data: { loginUrl } });
 });
 
 // @desc     Login with Facebook.  This endpoint is hit from Facebook and should not be accessed from a front-end application.
@@ -404,9 +404,9 @@ exports.createFacebookUrl = asyncHandler(async (req, res, next) => {
     display: 'popup',
   });
 
-  const facebookLoginUrl = `https://www.facebook.com/v4.0/dialog/oauth?${stringifiedParams}`;
+  const loginUrl = `https://www.facebook.com/v4.0/dialog/oauth?${stringifiedParams}`;
 
-  res.status(200).json({ success: true, data: { facebookLoginUrl } });
+  res.status(200).json({ success: true, data: { loginUrl } });
 });
 
 const genTokenAndOptions = (user) => {
