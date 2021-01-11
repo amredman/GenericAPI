@@ -153,12 +153,31 @@ exports.updateDetails = asyncHandler(async (req, res, next) => {
     email: req.body.email,
   };
 
+  const nameChange = (req.body.name !== req.user.name)
+  const emailChange = (req.body.email !== req.user.email)
+  let notificationType;
+  switch (true) {
+    case nameChange && emailChange:
+      notificationType = 'name and email'
+      break
+    case nameChange && !emailChange:
+      notificationType = 'name'
+      break
+    case !nameChange && emailChange:
+      notificationType = 'email'
+      break
+    case !nameChange && !emailChange:
+      notificationType = 'profile'
+      break
+  }
+
+
   const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
     new: true,
     runValidators: true,
   });
 
-  if (!sendNotificationEmail(user.email, 'profile')) {
+  if (!sendNotificationEmail(user.email, notificationType)) {
     return next(new ErrorResponse('Email could not be sent', 500));
   }
   res.status(200).json({
