@@ -66,11 +66,19 @@ app.use(cors());
 // Set static folder
 app.use(express.static(path.join(__dirname, 'public')));
 
+// middleware for simulating latency
+// before rotuers if valid
+if (process.env.TEST_LOADING === 'true') {
+  console.log('server is in slow mode on purpose')
+  app.use((req, res, next) => setTimeout(next, 2000))
+}
+
 // Mount routers
 app.use('/api/v1/auth', auth);
 app.use('/api/v1/users', users);
 
 app.use(errorHandler); //note: this has to be after routers if we want to use errorHandler in the controller methods
+
 
 const PORT = process.env.PORT || 5000;
 
