@@ -153,12 +153,31 @@ exports.updateDetails = asyncHandler(async (req, res, next) => {
     email: req.body.email,
   };
 
+  const nameChange = (req.body.name !== req.user.name)
+  const emailChange = (req.body.email !== req.user.email)
+  let notificationType;
+  switch (true) {
+    case nameChange && emailChange:
+      notificationType = 'name and email'
+      break
+    case nameChange && !emailChange:
+      notificationType = 'name'
+      break
+    case !nameChange && emailChange:
+      notificationType = 'email'
+      break
+    case !nameChange && !emailChange:
+      notificationType = 'profile'
+      break
+  }
+
+
   const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
     new: true,
     runValidators: true,
   });
 
-  if (!sendNotificationEmail(user.email, 'profile')) {
+  if (!sendNotificationEmail(user.email, notificationType)) {
     return next(new ErrorResponse('Email could not be sent', 500));
   }
   res.status(200).json({
@@ -319,7 +338,8 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
     });
   } else if (user.facebookId) {
     //User has already logged in with Facebook
-    return next(new ErrorResponse('User has already created an account with Facebook', 400));
+    res.redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/google/login/error?success=false&error=User has already created an account with Facebook`)
+    return
   }
   const {token, options} = genTokenAndOptions(user)
   res.cookie('token', token, options).redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/login`)
@@ -338,9 +358,9 @@ exports.createGoogleUrl = asyncHandler(async (req, res, next) => {
     prompt: 'consent',
   });
 
-  const googleLoginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${stringifiedParams}`;
+  const loginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${stringifiedParams}`;
 
-  res.status(200).json({ success: true, data: { googleLoginUrl } });
+  res.status(200).json({ success: true, data: { loginUrl } });
 });
 
 // @desc     Login with Facebook.  This endpoint is hit from Facebook and should not be accessed from a front-end application.
@@ -383,7 +403,8 @@ exports.loginWithFacebook = asyncHandler(async (req, res, next) => {
     });
   } else if (user.googleId) {
     //User has already logged in with Google
-    return next(new ErrorResponse('User has already created an account with Google', 400));
+    res.redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/facebook/login/error?success=false&error=User has already created an account with Google`)
+    return
   }
 
   //Log the user in and return a valid token
@@ -404,9 +425,9 @@ exports.createFacebookUrl = asyncHandler(async (req, res, next) => {
     display: 'popup',
   });
 
-  const facebookLoginUrl = `https://www.facebook.com/v4.0/dialog/oauth?${stringifiedParams}`;
+  const loginUrl = `https://www.facebook.com/v4.0/dialog/oauth?${stringifiedParams}`;
 
-  res.status(200).json({ success: true, data: { facebookLoginUrl } });
+  res.status(200).json({ success: true, data: { loginUrl } });
 });
 
 const genTokenAndOptions = (user) => {
