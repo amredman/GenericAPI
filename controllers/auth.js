@@ -98,11 +98,14 @@ exports.login = asyncHandler(async (req, res, next) => {
   }
 
   // Check for user
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email })
+    .select('+password')
+    .select('+facebookId')
+    .select('+googleId');
   if (!user) {
     return next(new ErrorResponse('Invalid Credentials', 401));
   }
-
+  
   // Check if password matches
   const isMatch = await user.matchPassword(password);
 

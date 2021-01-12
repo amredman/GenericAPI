@@ -85,6 +85,10 @@ UserSchema.methods.getSignedJwtToken = function () {
 
 // Match user entered password to hashed password in database
 UserSchema.methods.matchPassword = async function (enteredPassword) {
+  if (this.googleId || this.facebookId) {
+    // not a password sign on account
+    return false
+  }
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

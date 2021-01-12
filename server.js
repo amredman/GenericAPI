@@ -70,7 +70,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // before rotuers if valid
 if (process.env.TEST_LOADING === 'true') {
   console.log('server is in slow mode on purpose')
-  app.use((req, res, next) => setTimeout(next, 2000))
+  app.use((req, res, next) => setTimeout(next, 1000))
 }
 
 // Mount routers
