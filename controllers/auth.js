@@ -338,7 +338,8 @@ exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
     });
   } else if (user.facebookId) {
     //User has already logged in with Facebook
-    res.redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/google/login/error?success=false&error=User has already created an account with Facebook`)
+    const errorMessage = "Sorry, but an account has already been created with that email address"
+    res.redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/google/login/error?success=false&error=${errorMessage}`)
     return
   }
   const {token, options} = genTokenAndOptions(user)
@@ -403,7 +404,9 @@ exports.loginWithFacebook = asyncHandler(async (req, res, next) => {
     });
   } else if (user.googleId) {
     //User has already logged in with Google
-    res.redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/facebook/login/error?success=false&error=User has already created an account with Google`)
+
+    const errorMessage = "Sorry, but an account has already been created with that email address"
+    res.redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/facebook/login/error?success=false&error=${errorMessage}`)
     return
   }
 
