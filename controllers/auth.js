@@ -174,11 +174,17 @@ exports.updateDetails = asyncHandler(async (req, res, next) => {
       break
   }
 
-
-  const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
-    new: true,
-    runValidators: true,
-  });
+  let user;
+  try {
+    user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
+      new: true,
+      runValidators: true,
+    });
+  } catch (e) {
+    if ('email' in e.keyValue) {
+      return next(new ErrorResponse('email already in use', 401))
+    }
+  }
 
   if (!sendNotificationEmail(user.email, notificationType)) {
     return next(new ErrorResponse('Email could not be sent', 500));

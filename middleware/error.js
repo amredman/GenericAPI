@@ -21,6 +21,7 @@ const errorHandler = (err, req, res, next) => {
     } else {
       message = 'Duplicate field value entered';
     }
+
     error = new ErrorResponse(message, 400);
   }
 
