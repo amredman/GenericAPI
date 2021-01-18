@@ -384,7 +384,6 @@ exports.loginWithFacebook = asyncHandler(async (req, res, next) => {
       code: urlParams.code,
     },
   });
-
   //Select user information from Facebook
   const facebookData = await axios({
     url: 'https://graph.facebook.com/me',
@@ -398,7 +397,6 @@ exports.loginWithFacebook = asyncHandler(async (req, res, next) => {
   //Search for user and create if not found
   const email = facebookData.data.email;
   let user = await User.findOne({ email }).select('+googleId');
-
   if (!user) {
     user = await User.create({
       name: facebookData.data.first_name + ' ' + facebookData.data.last_name,
@@ -407,7 +405,6 @@ exports.loginWithFacebook = asyncHandler(async (req, res, next) => {
     });
   } else if (user.googleId) {
     //User has already logged in with Google
-
     const errorMessage = "Sorry, but an account has already been created with that email address"
     res.redirect(`${req.protocol}://${process.env.FRONTEND_HOST}/api/v1/auth/facebook/login/error?success=false&error=${errorMessage}`)
     return
